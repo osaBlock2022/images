@@ -140,3 +140,61 @@
     <solid
         android:color="#FFFFFF"/>
 </shape>
+
+
+
+//EditText
+ <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="50dp"
+        android:orientation="horizontal"
+        android:layout_margin="10dp"
+        android:backgroundTint="#ACACAC"
+         >
+
+        <EditText
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/border_button_shape"
+            android:hint="    Enter your name"
+            />
+    </LinearLayout>
+
+
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="50dp"
+        android:orientation="horizontal"
+        android:layout_marginTop="10dp"
+        android:layout_marginRight="10dp"
+        android:layout_marginLeft="10dp"
+        android:backgroundTint="#ACACAC"
+        >
+
+        <EditText
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/button_shape_upper_round"
+            android:hint="    Enter your name"
+            />
+    </LinearLayout>
+
+
+    <LinearLayout
+    android:layout_width="fill_parent"
+    android:layout_height="50dp"
+    android:orientation="horizontal"
+    android:layout_marginBottom="10dp"
+    android:layout_marginRight="10dp"
+    android:layout_marginLeft="10dp"
+    android:backgroundTint="#ACACAC"
+    >
+
+    <EditText
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/button_shape_bottom_round"
+        android:hint="    Enter your name"
+        />
+</LinearLayout>
