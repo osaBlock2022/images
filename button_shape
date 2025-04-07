@@ -243,3 +243,305 @@
         </LinearLayout>
 
     </LinearLayout>
+--------------------------------------
+package com.example.bookspot.View;
+
+import android.annotation.SuppressLint;
+import android.app.Dialog;
+import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.net.Uri;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+import android.widget.ViewFlipper;
+import androidx.activity.EdgeToEdge;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+
+import com.example.bookspot.R;
+import com.samsung.android.sdk.iap.lib.constants.HelperDefine;
+import com.samsung.android.sdk.iap.lib.helper.IapHelper;
+import com.samsung.android.sdk.iap.lib.listener.OnChangeSubscriptionPlanListener;
+import com.samsung.android.sdk.iap.lib.listener.OnGetOwnedListListener;
+import com.samsung.android.sdk.iap.lib.listener.OnGetProductsDetailsListener;
+import com.samsung.android.sdk.iap.lib.listener.OnGetPromotionEligibilityListener;
+import com.samsung.android.sdk.iap.lib.listener.OnPaymentListener;
+import com.samsung.android.sdk.iap.lib.vo.ErrorVo;
+import com.samsung.android.sdk.iap.lib.vo.OwnedProductVo;
+import com.samsung.android.sdk.iap.lib.vo.ProductVo;
+import com.samsung.android.sdk.iap.lib.vo.PromotionEligibilityVo;
+import com.samsung.android.sdk.iap.lib.vo.PurchaseVo;
+import com.samsung.android.sdk.iap.lib.vo.SubscriptionPriceChangeVo;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+
+    private ViewFlipper flipper;
+    private LinearLayout basic_button, standard_button, premium_button;
+    private TextView basic_subs_btn, standard_subs_btn, premium_subs_btn;
+
+    private TextView basic_tv, standard_tv, premium_tv;
+    private ImageView basic_upgrade_btn, standard_upgrade_btn, premium_upgrade_btn;
+    private IapHelper iapHelper;
+
+    private Dialog dialog;
+    private TextView itemName, itemType, itemPrice, itemDuration, itemPricing;
+    private LinearLayout subscriptionButton;
+
+    @SuppressLint("MissingInflatedId")
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);
+        setContentView(R.layout.activity_main);
+        getSupportActionBar().hide();
+
+        iapHelper = IapHelper.getInstance(getApplicationContext());
+        iapHelper.setOperationMode(HelperDefine.OperationMode.OPERATION_MODE_TEST);
+
+        dialog = new Dialog(MainActivity.this);
+        dialog.setContentView(R.layout.item_details_dialog_design);
+        dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+
+        itemName = dialog.findViewById(R.id.subscriptionNameTvId);
+        itemType = dialog.findViewById(R.id.subscriptionTypeTvId);
+        itemPrice = dialog.findViewById(R.id.subscriptionPriceTvId);
+        itemDuration = dialog.findViewById(R.id.subscriptionDurationTvId);
+        itemPricing = dialog.findViewById(R.id.subscriptionPricingTvId);
+        subscriptionButton = dialog.findViewById(R.id.subscriptionBtnId);
+
+        flipper = findViewById(R.id.viewFliperId);
+        basic_button = findViewById(R.id.basicBtnId);
+        standard_button = findViewById(R.id.standardBtnId);
+        premium_button = findViewById(R.id.premiumBtnId);
+        basic_tv = findViewById(R.id.basicTextViewId);
+        standard_tv = findViewById(R.id.standardTextViewId);
+        premium_tv = findViewById(R.id.premiumTextViewId);
+        basic_subs_btn = findViewById(R.id.subscribeTextViewId_1);
+        standard_subs_btn = findViewById(R.id.subscribeTextViewId_2);
+        premium_subs_btn = findViewById(R.id.subscribeTextViewId_3);
+        basic_upgrade_btn = findViewById(R.id.upgradeBtnId_1);
+        standard_upgrade_btn = findViewById(R.id.upgradeBtnId_2);
+        premium_upgrade_btn = findViewById(R.id.upgradeBtnId_3);
+
+        basic_button.setOnClickListener(this);
+        standard_button.setOnClickListener(this);
+        premium_button.setOnClickListener(this);
+        basic_subs_btn.setOnClickListener(this);
+        standard_subs_btn.setOnClickListener(this);
+        premium_subs_btn.setOnClickListener(this);
+
+        getOwnList();
+
+    }
+
+    @Override
+    public void onClick(View v) {
+        removeButtonBackgrounds();
+        if (v.getId() == R.id.basicBtnId) {
+            basic_button.setBackgroundDrawable(ContextCompat.getDrawable(getApplicationContext(), R.drawable.selected_button_shape));
+            basic_tv.setTextColor(Color.WHITE);
+            flipper.setDisplayedChild(flipper.indexOfChild(findViewById(R.id.cardView_1)));
+        } else if (v.getId() == R.id.standardBtnId) {
+            standard_button.setBackgroundDrawable(ContextCompat.getDrawable(getApplicationContext(), R.drawable.selected_button_shape));
+            standard_tv.setTextColor(Color.WHITE);
+            flipper.setDisplayedChild(flipper.indexOfChild(findViewById(R.id.cardView_2)));
+        } else if (v.getId() == R.id.premiumBtnId) {
+            premium_button.setBackgroundDrawable(ContextCompat.getDrawable(getApplicationContext(), R.drawable.selected_button_shape));
+            premium_tv.setTextColor(Color.WHITE);
+            flipper.setDisplayedChild(flipper.indexOfChild(findViewById(R.id.cardView_3)));
+        } else if (v.getId() == R.id.subscribeTextViewId_1){
+            getItemDetails("basic_course");
+            getPromotionEligibility("basic_course");
+        } else if (v.getId() == R.id.subscribeTextViewId_2){
+            getItemDetails("standard_course");
+            getPromotionEligibility("standard_course");
+        } else if (v.getId() == R.id.subscribeTextViewId_3){
+            getItemDetails("premium_course");
+            getPromotionEligibility("premium_course");
+        }
+    }
+
+    public void getOwnList() {
+        iapHelper.getOwnedList(HelperDefine.PRODUCT_TYPE_SUBSCRIPTION, new OnGetOwnedListListener() {
+            @Override
+            public void onGetOwnedProducts(@NonNull ErrorVo errorVo, @NonNull ArrayList<OwnedProductVo> ownedList) {
+                if (errorVo.getErrorCode() == IapHelper.IAP_ERROR_NONE) {
+                    for (OwnedProductVo item : ownedList) {
+                        if (item != null) {
+                            // Get subscription price change info
+                            SubscriptionPriceChangeVo priceChangeVo = item.getSubscriptionPriceChange();
+                            if (priceChangeVo != null) {
+                                if (!priceChangeVo.isConsented()) {
+                                    // User has NOT consented to price change
+                                    Toast.makeText(
+                                            getApplicationContext(),
+                                            "Price for subscription \"" + item.getItemName() +
+                                                    "\" has changed. Please confirm it in the store.",
+                                            Toast.LENGTH_LONG
+                                    ).show();
+                                } else {
+                                    // User has consented to price change
+                                    Toast.makeText(
+                                            getApplicationContext(),
+                                            "Price for subscription \"" + item.getItemName() + "\" is updated.",
+                                            Toast.LENGTH_SHORT
+                                    ).show();
+                                }
+                            } else {
+                                // Case: No subscription price change info available
+                                Toast.makeText(
+                                        getApplicationContext(),
+                                        "No subscription price change info for: " + item.getItemName(),
+                                        Toast.LENGTH_SHORT
+                                ).show();
+                            }
+                        }
+                    }
+                } else {
+                    // Handle error case
+                    Log.e("IAP", "Error getting owned list: " + errorVo.getErrorString());
+                    Toast.makeText(
+                            getApplicationContext(),
+                            "Failed to retrieve purchases: " + errorVo.getErrorString(),
+                            Toast.LENGTH_SHORT
+                    ).show();
+                }
+            }
+        });
+    }
+
+
+    public void startSubscription(String itemId) {
+        iapHelper.startPayment(itemId, "1", new OnPaymentListener() {
+            @Override
+            public void onPayment(@NonNull ErrorVo errorVo, @Nullable PurchaseVo purchaseVo) {
+                if (errorVo.getErrorCode() == IapHelper.IAP_ERROR_NONE && purchaseVo != null) {
+                    handleSubscription(itemId);
+                } else {
+                    // TODO: Handle the error
+                }
+            }
+        });
+
+    }
+
+    private void handleSubscription(String itemId) {
+        Map<String, ImageView> upgradeButtons = new HashMap<>();
+        upgradeButtons.put("basic_level", basic_upgrade_btn);
+        upgradeButtons.put("standard_level", standard_upgrade_btn);
+        upgradeButtons.put("premium_level", premium_upgrade_btn);
+
+        Map<String, TextView> subsButtons = new HashMap<>();
+        subsButtons.put("basic_level", basic_subs_btn);
+        subsButtons.put("standard_level", standard_subs_btn);
+        subsButtons.put("premium_level", premium_subs_btn);
+
+        upgradeButtons.get(itemId).setVisibility(View.VISIBLE);
+        subsButtons.get(itemId).setText("Already Subscribed");
+        upgradeButtons.get(itemId).setOnClickListener(view -> changeSubscriptionPlan(itemId));
+    }
+
+    public void getItemDetails(String itemId){
+        View.OnClickListener dialogBtnListener = new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startSubscription(itemId);
+                dialog.dismiss();
+            }
+        };
+        dialog.show();
+        iapHelper.getProductsDetails(itemId, new OnGetProductsDetailsListener() {
+            @Override
+            public void onGetProducts(@NonNull ErrorVo errorVo, @NonNull ArrayList<ProductVo> productList) {
+                if (errorVo.getErrorCode() == IapHelper.IAP_ERROR_NONE) {
+                    for (ProductVo item : productList) {
+                        // TODO: Get details of the item
+                        itemName.setText(item.getItemName()+" Level Course");
+                        itemType.setText("Item Type: "+item.getType());
+                        itemPrice.setText("Item Price: "+item.getItemPrice()+item.getCurrencyUnit());
+                        itemDuration.setText("Item Duration: "+item.getSubscriptionDurationUnit());
+                        subscriptionButton.setOnClickListener(dialogBtnListener);
+                    }
+                } else {
+                    // TODO: Handle the error
+                }
+            }
+        });
+    }
+
+    public void getPromotionEligibility(String itemId){
+        iapHelper.getPromotionEligibility(itemId, new OnGetPromotionEligibilityListener() {
+            @Override
+            public void onGetPromotionEligibility(@NonNull ErrorVo errorVo, @NonNull ArrayList<PromotionEligibilityVo> pricingList) {
+                if (errorVo.getErrorCode() == IapHelper.IAP_ERROR_NONE) {
+                    for (PromotionEligibilityVo pricing : pricingList) {
+                        // TODO: Get the pricing options of the subscription
+                        itemPricing.setText("Item Pricing: "+pricing.getPricing());
+                    }
+                } else {
+                    // TODO: Handle the error
+                }
+            }
+        });
+
+    }
+
+    public void changeSubscriptionPlan(String itemId){
+        String newItemId = "";
+        if (itemId.equals("basic_level")){
+            newItemId = "standard_level";
+        }else if (itemId.equals("standard_level")){
+            newItemId = "premium_level";
+        }
+        iapHelper.changeSubscriptionPlan(
+                itemId,
+                newItemId,
+                HelperDefine.ProrationMode.INSTANT_PRORATED_DATE,
+                String.valueOf(1),
+                new OnChangeSubscriptionPlanListener() {
+                    @Override
+                    public void onChangeSubscriptionPlan(@NonNull ErrorVo errorVo, @Nullable PurchaseVo purchaseVo) {
+                        if (errorVo.getErrorCode() == IapHelper.IAP_ERROR_NONE) {
+                            if (purchaseVo != null) {
+                                // TODO: Check details about your newly purchased subscription
+                                if(itemId.equals("basic_level")){
+                                    handleSubscription(itemId);
+                                }else if (itemId.equals("standard_level")){
+                                    handleSubscription(itemId);
+                                }
+
+                                String passThroughParam = purchaseVo.getPassThroughParam();
+                                // TODO: If you have set a PassThroughParameter in the request,
+                                //       you can verify the PassThroughParameter here.
+                            }
+                        } else {
+                            // TODO: Handle the error
+                        }
+                    }
+                });
+    }
+
+    private void removeButtonBackgrounds() {
+        basic_button.setBackgroundDrawable(null);
+        standard_button.setBackgroundDrawable(null);
+        premium_button.setBackgroundDrawable(null);
+
+        basic_tv.setTextColor(Color.BLACK);
+        standard_tv.setTextColor(Color.BLACK);
+        premium_tv.setTextColor(Color.BLACK);
+    }
+}
